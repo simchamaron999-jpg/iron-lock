@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IronLock</string>
+    <string name="admin_description">IronLock requires Device Admin privileges to enforce unstoppable alarms. It will lock the device after the alarm period and prevent shutdown during alarms.</string>
+</resources>

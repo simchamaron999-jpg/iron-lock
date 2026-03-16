@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Declares which Device Admin policies IronLock requires.
+  The user must grant these when activating the app as a Device Admin.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <!-- Lock the screen immediately -->
+        <force-lock />
+        <!-- Set/require a device password -->
+        <limit-password />
+        <!-- Wipe the device (remote wipe feature) -->
+        <wipe-data />
+        <!-- Watch login attempts -->
+        <watch-login />
+        <!-- Disable/enable the camera -->
+        <disable-camera />
+        <!-- Disable the keyguard features -->
+        <disable-keyguard-features />
+    </uses-policies>
+</device-admin>
