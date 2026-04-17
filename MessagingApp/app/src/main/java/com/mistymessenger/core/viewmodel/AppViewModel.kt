@@ -41,6 +41,9 @@ class AppViewModel @Inject constructor(
     private val _authState = MutableStateFlow(AuthState())
     val authState = _authState.asStateFlow()
 
+    var isAppLockEnabled: Boolean = false
+        private set
+
     init {
         checkAuth()
     }
@@ -75,6 +78,10 @@ class AppViewModel @Inject constructor(
                 fontFamily = fontFamily ?: current.fontFamily
             )
         }
+    }
+
+    fun setAppLock(enabled: Boolean) {
+        isAppLockEnabled = enabled
     }
 
     fun onAppForeground() {

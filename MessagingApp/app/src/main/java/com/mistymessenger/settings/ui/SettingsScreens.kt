@@ -1,5 +1,6 @@
 package com.mistymessenger.settings.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -52,14 +53,13 @@ private fun SettingsItem(
     onClick: () -> Unit
 ) {
     ListItem(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         headlineContent = { Text(title) },
         supportingContent = if (subtitle.isNotEmpty()) ({ Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }) else null,
         leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.outline) }
     )
     HorizontalDivider()
-    // onClick handled via Modifier — wrapping ListItem in Surface for click
 }
 
 // ─── Privacy Settings ───────────────────────────────────────────────────────
@@ -249,13 +249,8 @@ fun NotificationSettingsScreen(navController: NavHostController) = StubSettingsS
 @Composable
 fun StorageSettingsScreen(navController: NavHostController) = StubSettingsScreen("Storage & Data", navController)
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ChatWallpaperScreen(chatId: String, navController: NavHostController) = StubSettingsScreen("Chat Wallpaper", navController)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ChatLockScreen(chatId: String, navController: NavHostController) = StubSettingsScreen("Chat Lock", navController)
+// ChatWallpaperScreen lives in ChatWallpaperScreen.kt
+// ChatLockScreen lives in ChatLockScreen.kt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -140,6 +140,9 @@ interface ChatSettingsDao {
 
     @Query("SELECT * FROM chat_settings WHERE chatId = :chatId")
     fun getSettings(chatId: String): Flow<ChatSettingsEntity?>
+
+    @Query("SELECT * FROM chat_settings WHERE chatId = :chatId LIMIT 1")
+    suspend fun getSettingsOnce(chatId: String): ChatSettingsEntity?
 }
 
 @Dao

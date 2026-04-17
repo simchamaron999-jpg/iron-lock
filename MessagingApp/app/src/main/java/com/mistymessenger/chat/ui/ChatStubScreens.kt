@@ -221,36 +221,5 @@ fun GlobalSearchScreen(navController: NavHostController) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScheduledMessagesScreen(chatId: String, navController: NavHostController) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                title = { Text("Scheduled Messages") }
-            )
-        }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-            Text("Schedule messages — Phase 8", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AutoReplyScreen(navController: NavHostController) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                title = { Text("Auto Reply") }
-            )
-        }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-            Text("Auto reply rules — Phase 8", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
+// ScheduledMessagesScreen lives in ScheduledMessagesScreen.kt
+// AutoReplyScreen lives in AutoReplyScreen.kt
