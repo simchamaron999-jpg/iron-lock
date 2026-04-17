@@ -1,5 +1,6 @@
 package com.mistymessenger.call.ui
 
+import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,10 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mistymessenger.call.viewmodel.CallViewModel
+import com.mistymessenger.call.viewmodel.formatDuration
 import com.mistymessenger.core.db.entity.CallLogEntity
 import com.mistymessenger.core.ui.components.AvatarImage
+import org.webrtc.SurfaceViewRenderer
 
 @Composable
 fun CallsScreen(
@@ -69,7 +73,8 @@ private fun CallLogItem(call: CallLogEntity, onCallBack: () -> Unit) {
                     tint = if (call.direction == "missed") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    call.direction.replaceFirstChar { it.uppercase() },
+                    call.direction.replaceFirstChar { it.uppercase() } +
+                        if (call.durationSeconds > 0) " • ${formatDuration(call.durationSeconds)}" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (call.direction == "missed") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -94,6 +99,7 @@ fun VoiceCallScreen(chatId: String, onEnd: () -> Unit, viewModel: CallViewModel 
     val state by viewModel.callState.collectAsState()
 
     LaunchedEffect(chatId) { viewModel.startCall(chatId, isVideo = false) }
+    LaunchedEffect(state.isEnded) { if (state.isEnded) onEnd() }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.inverseSurface)) {
         Column(
@@ -103,19 +109,29 @@ fun VoiceCallScreen(chatId: String, onEnd: () -> Unit, viewModel: CallViewModel 
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(Modifier.height(80.dp))
-                AvatarImage(url = state.remoteAvatarUrl, name = state.remoteName, size = 100.dp)
+                AvatarImage(url = state.remoteAvatarUrl, name = state.remoteName.ifBlank { "?" }, size = 100.dp)
                 Spacer(Modifier.height(16.dp))
-                Text(state.remoteName, style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                Text(state.remoteName.ifBlank { "Unknown" }, style = MaterialTheme.typography.headlineMedium, color = Color.White)
                 Spacer(Modifier.height(8.dp))
-                Text(state.statusText, color = Color.White.copy(alpha = 0.7f))
+                Text(
+                    if (state.isConnected) formatDuration(state.durationSeconds) else state.statusText,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                CallButton(Icons.Default.MicOff, "Mute", state.isMuted) { viewModel.toggleMute() }
-                CallButton(Icons.Default.CallEnd, "End", false, Color.Red) { viewModel.endCall(); onEnd() }
-                CallButton(Icons.Default.VolumeUp, "Speaker", state.isSpeaker) { viewModel.toggleSpeaker() }
+                CallButton(
+                    if (state.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                    "Mute", state.isMuted
+                ) { viewModel.toggleMute() }
+                CallButton(Icons.Default.CallEnd, "End", false, Color.Red) {
+                    viewModel.endCall()
+                }
+                CallButton(Icons.Default.VolumeUp, "Speaker", state.isSpeaker) {
+                    viewModel.toggleSpeaker()
+                }
             }
         }
     }
@@ -127,29 +143,103 @@ fun VideoCallScreen(chatId: String, onEnd: () -> Unit, viewModel: CallViewModel 
     val state by viewModel.callState.collectAsState()
 
     LaunchedEffect(chatId) { viewModel.startCall(chatId, isVideo = true) }
+    LaunchedEffect(state.isEnded) { if (state.isEnded) onEnd() }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // Remote video view fills screen (WebRTC SurfaceViewRenderer — wired in Phase 6)
-        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E)), contentAlignment = Alignment.Center) {
-            Text("Remote video", color = Color.White.copy(alpha = 0.3f))
+    var controlsVisible by remember { mutableStateOf(true) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Remote video fills screen
+        AndroidView(
+            factory = { ctx ->
+                SurfaceViewRenderer(ctx).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    viewModel.attachRemoteView(this)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (!state.hasRemoteStream) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AvatarImage(url = state.remoteAvatarUrl, name = state.remoteName.ifBlank { "?" }, size = 96.dp)
+                Spacer(Modifier.height(12.dp))
+                Text(state.remoteName.ifBlank { "Connecting..." }, color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(state.statusText, color = Color.White.copy(alpha = 0.6f))
+            }
         }
-        // Local video preview (PiP)
+
+        // Local preview (PiP, top-right)
         Surface(
-            modifier = Modifier.size(100.dp, 140.dp).align(Alignment.TopEnd).padding(16.dp),
+            modifier = Modifier
+                .size(110.dp, 150.dp)
+                .align(Alignment.TopEnd)
+                .padding(top = 32.dp, end = 16.dp),
             shape = MaterialTheme.shapes.medium,
-            color = Color(0xFF16213E)
+            color = Color(0xFF111111)
         ) {
-            Box(contentAlignment = Alignment.Center) { Text("You", color = Color.White.copy(alpha = 0.5f)) }
+            AndroidView(
+                factory = { ctx ->
+                    SurfaceViewRenderer(ctx).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        viewModel.attachLocalView(this)
+                    }
+                }
+            )
         }
+
+        // Top overlay
+        if (controlsVisible) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 32.dp, start = 16.dp),
+                color = Color.Black.copy(alpha = 0.4f),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    Text(state.remoteName.ifBlank { "Unknown" }, color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (state.isConnected) formatDuration(state.durationSeconds) else state.statusText,
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+
         // Controls
-        Row(
-            modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(bottom = 40.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            CallButton(Icons.Default.MicOff, "Mute", state.isMuted) { viewModel.toggleMute() }
-            CallButton(Icons.Default.VideocamOff, "Camera", state.isCameraOff) { viewModel.toggleCamera() }
-            CallButton(Icons.Default.CallEnd, "End", false, Color.Red) { viewModel.endCall(); onEnd() }
-            CallButton(Icons.Default.Cameraswitch, "Flip", false) { viewModel.flipCamera() }
+        if (controlsVisible) {
+            Row(
+                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(bottom = 40.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                CallButton(
+                    if (state.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                    "Mute", state.isMuted
+                ) { viewModel.toggleMute() }
+                CallButton(
+                    if (state.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam,
+                    "Camera", state.isCameraOff
+                ) { viewModel.toggleCamera() }
+                CallButton(Icons.Default.CallEnd, "End", false, Color.Red) {
+                    viewModel.endCall()
+                }
+                CallButton(Icons.Default.Cameraswitch, "Flip", false) { viewModel.flipCamera() }
+            }
         }
     }
 }
@@ -165,9 +255,12 @@ private fun CallButton(
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(56.dp).clip(CircleShape).background(if (active) activeColor else Color.White.copy(alpha = 0.15f))
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(if (active) activeColor else Color.White.copy(alpha = 0.15f))
         ) {
-            Icon(icon, label, tint = if (active) Color.White else Color.White)
+            Icon(icon, label, tint = Color.White)
         }
         Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
     }
