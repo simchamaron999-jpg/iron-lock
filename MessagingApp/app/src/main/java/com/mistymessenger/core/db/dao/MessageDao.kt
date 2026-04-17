@@ -49,4 +49,7 @@ interface MessageDao {
 
     @Query("UPDATE messages SET reactions = :reactions WHERE id = :id")
     suspend fun updateReactions(id: String, reactions: List<String>)
+
+    @Query("SELECT * FROM messages WHERE chatId = :chatId AND type IN ('image','video','gif') AND isDeletedForMe = 0 ORDER BY createdAt DESC")
+    fun getMediaMessages(chatId: String): Flow<List<MessageEntity>>
 }

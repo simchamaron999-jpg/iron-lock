@@ -23,15 +23,27 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import android.net.Uri
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
 import com.mistymessenger.chat.ui.components.*
 import com.mistymessenger.chat.viewmodel.ChatDetailViewModel
 import com.mistymessenger.chat.viewmodel.ChatEvent
+import com.mistymessenger.chat.viewmodel.GifViewModel
 import com.mistymessenger.core.db.dao.MessageDao
 import com.mistymessenger.core.db.entity.MessageEntity
+import com.mistymessenger.core.media.RecorderState
 import com.mistymessenger.core.ui.components.AvatarImage
 import com.mistymessenger.core.ui.components.MessageTickIcon
 import com.mistymessenger.core.ui.theme.LocalChatThemeExtras
 import com.mistymessenger.navigation.Screen
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -41,7 +53,8 @@ import javax.inject.Inject
 fun ChatDetailScreen(
     chatId: String,
     navController: NavHostController,
-    viewModel: ChatDetailViewModel = hiltViewModel()
+    viewModel: ChatDetailViewModel = hiltViewModel(),
+    gifViewModel: GifViewModel = hiltViewModel()
 ) {
     val chat by viewModel.chat.collectAsState()
     val messages = viewModel.messages.collectAsLazyPagingItems()
@@ -50,6 +63,7 @@ fun ChatDetailScreen(
     val event by viewModel.event.collectAsState()
     val themeExtras = LocalChatThemeExtras.current
     val currentUserId = viewModel.currentUserId
+    val recorderState by viewModel.voiceRecorder.state.collectAsState()
 
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -58,6 +72,10 @@ fun ChatDetailScreen(
     var contextMenuMsg by remember { mutableStateOf<MessageEntity?>(null) }
     var emojiSheetMsg by remember { mutableStateOf<MessageEntity?>(null) }
     var deleteDialogMsg by remember { mutableStateOf<MessageEntity?>(null) }
+    var showAttachSheet by remember { mutableStateOf(false) }
+    var showGifPicker by remember { mutableStateOf(false) }
+    var showStickerSheet by remember { mutableStateOf(false) }
+    var fullResEnabled by remember { mutableStateOf(true) }
 
     LaunchedEffect(chatId) { viewModel.init(chatId) }
 
@@ -121,19 +139,27 @@ fun ChatDetailScreen(
                         onDismiss = { viewModel.clearReply() }
                     )
                 }
-                ChatInputBar(
-                    text = inputText,
-                    onTextChange = { inputText = it; viewModel.onTyping() },
-                    onSend = {
-                        if (inputText.isNotBlank()) {
-                            viewModel.sendTextMessage(inputText.trim())
-                            inputText = ""
-                        }
-                    },
-                    onAttach = { /* Phase 4: media picker */ },
-                    onVoice = { /* Phase 4: voice recorder */ },
-                    onEmoji = { /* Phase 4: emoji keyboard */ }
-                )
+                when (val rs = recorderState) {
+                    is RecorderState.Recording -> VoiceRecorderBar(
+                        durationMs = rs.durationMs,
+                        amplitudes = rs.amplitudes,
+                        onCancel = { viewModel.cancelRecording() },
+                        onSend = { viewModel.stopAndSendVoice() }
+                    )
+                    else -> ChatInputBar(
+                        text = inputText,
+                        onTextChange = { inputText = it; viewModel.onTyping() },
+                        onSend = {
+                            if (inputText.isNotBlank()) {
+                                viewModel.sendTextMessage(inputText.trim())
+                                inputText = ""
+                            }
+                        },
+                        onAttach = { showAttachSheet = true },
+                        onVoice = { viewModel.startRecording() },
+                        onEmoji = { /* TODO: emoji keyboard */ }
+                    )
+                }
             }
         }
     ) { padding ->
@@ -162,8 +188,11 @@ fun ChatDetailScreen(
                         onReplySwipe = { viewModel.setReplyTarget(message) },
                         onReactionClick = { emoji -> viewModel.sendReaction(message.id, emoji) },
                         onClick = {
-                            if (message.type == "image" || message.type == "video") {
-                                navController.navigate(Screen.MediaViewer.createRoute(message.id))
+                            if (message.type == "image" || message.type == "video" || message.type == "gif") {
+                                val encodedUrl = URLEncoder.encode(message.mediaUrl ?: "", "UTF-8")
+                                val mime = if (message.type == "video") "video/mp4" else "image/jpeg"
+                                val encodedMime = URLEncoder.encode(mime, "UTF-8")
+                                navController.navigate(Screen.MediaViewer.createRoute(encodedUrl, encodedMime))
                             }
                         },
                         viewModel = viewModel
@@ -214,6 +243,46 @@ fun ChatDetailScreen(
                 deleteDialogMsg = null
             },
             onDismiss = { deleteDialogMsg = null }
+        )
+    }
+
+    // Attachment sheet
+    if (showAttachSheet) {
+        AttachmentSheet(
+            onDismiss = { showAttachSheet = false },
+            onImageSelected = { uri, fr -> viewModel.sendMedia(uri, "image/jpeg", fr); showAttachSheet = false },
+            onVideoSelected = { uri, fr -> viewModel.sendMedia(uri, "video/mp4", fr); showAttachSheet = false },
+            onDocumentSelected = { uri -> viewModel.sendMedia(uri, "application/octet-stream", true); showAttachSheet = false },
+            onCameraCapture = { showAttachSheet = false },
+            onGifPick = { showAttachSheet = false; showGifPicker = true },
+            onStickerPick = { showAttachSheet = false; showStickerSheet = true },
+            onLocationShare = { showAttachSheet = false },
+            onContactShare = { showAttachSheet = false },
+            fullResEnabled = fullResEnabled,
+            onToggleFullRes = { fullResEnabled = it }
+        )
+    }
+
+    // GIF picker
+    if (showGifPicker) {
+        val gifs by gifViewModel.gifs.collectAsState()
+        val gifLoading by gifViewModel.loading.collectAsState()
+        GifPickerSheet(
+            onDismiss = { showGifPicker = false },
+            onGifSelected = { url -> viewModel.sendGif(url); showGifPicker = false },
+            gifs = gifs,
+            isLoading = gifLoading,
+            onSearch = { gifViewModel.search(it) }
+        )
+    }
+
+    // Sticker sheet
+    if (showStickerSheet) {
+        StickerSheet(
+            onDismiss = { showStickerSheet = false },
+            onStickerSelected = { url -> viewModel.sendSticker(url); showStickerSheet = false },
+            packs = emptyList(),
+            onDownloadMorePacks = {}
         )
     }
 }
@@ -467,12 +536,122 @@ private fun DeleteMessageDialog(
     )
 }
 
-// Stub media composables — implemented Phase 4
-@Composable fun MessageImageContent(message: MessageEntity) { /* Phase 4 */ }
-@Composable fun MessageVideoContent(message: MessageEntity) { /* Phase 4 */ }
-@Composable fun MessageAudioContent(message: MessageEntity) { /* Phase 4 */ }
-@Composable fun MessageDocumentContent(message: MessageEntity) { /* Phase 4 */ }
-@Composable fun MessageLocationContent(message: MessageEntity) { /* Phase 8 */ }
+@Composable
+fun MessageImageContent(message: MessageEntity) {
+    AsyncImage(
+        model = message.mediaUrl,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .widthIn(max = 240.dp)
+            .heightIn(max = 240.dp)
+            .clip(RoundedCornerShape(8.dp))
+    )
+}
+
+@Composable
+fun MessageVideoContent(message: MessageEntity) {
+    Box(
+        modifier = Modifier
+            .widthIn(max = 240.dp)
+            .heightIn(max = 180.dp)
+            .clip(RoundedCornerShape(8.dp))
+    ) {
+        AsyncImage(
+            model = message.thumbnailUrl ?: message.mediaUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Icon(
+            Icons.Default.PlayCircle,
+            null,
+            tint = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
+            modifier = Modifier.size(44.dp).align(Alignment.Center)
+        )
+    }
+}
+
+@Composable
+fun MessageAudioContent(message: MessageEntity) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val player = remember {
+        androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
+            message.mediaUrl?.let { setMediaItem(androidx.media3.common.MediaItem.fromUri(it)) }
+            prepare()
+        }
+    }
+    DisposableEffect(Unit) { onDispose { player.release() } }
+
+    var isPlaying by remember { mutableStateOf(false) }
+    var progress by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            player.play()
+            while (player.isPlaying) {
+                val dur = player.duration.coerceAtLeast(1)
+                progress = player.currentPosition.toFloat() / dur
+                kotlinx.coroutines.delay(200)
+            }
+            isPlaying = false
+        } else {
+            player.pause()
+        }
+    }
+
+    Row(
+        modifier = Modifier.width(200.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        IconButton(onClick = { isPlaying = !isPlaying }, modifier = Modifier.size(36.dp)) {
+            Icon(
+                if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        WaveformPlayback(
+            amplitudes = List(30) { (50 + (Math.random() * 200).toInt()) },
+            progress = progress,
+            modifier = Modifier.weight(1f).height(32.dp)
+        )
+    }
+}
+
+@Composable
+fun MessageDocumentContent(message: MessageEntity) {
+    val fileName = message.mediaUrl?.substringAfterLast("/")?.substringBefore("?") ?: "Document"
+    Row(
+        modifier = Modifier
+            .width(200.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(Icons.Default.InsertDriveFile, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+        Text(fileName, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+fun MessageLocationContent(message: MessageEntity) {
+    Row(
+        modifier = Modifier
+            .width(200.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(32.dp))
+        Text(message.content.ifBlank { "Location" }, style = MaterialTheme.typography.bodySmall)
+    }
+}
 
 private fun sameDay(ms1: Long, ms2: Long): Boolean {
     val cal1 = Calendar.getInstance().apply { timeInMillis = ms1 }

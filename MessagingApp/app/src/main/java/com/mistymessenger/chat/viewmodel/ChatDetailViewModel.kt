@@ -14,6 +14,10 @@ import com.mistymessenger.core.db.dao.StarredMessageDao
 import com.mistymessenger.core.db.entity.ChatEntity
 import com.mistymessenger.core.db.entity.MessageEntity
 import com.mistymessenger.core.db.entity.StarredMessageEntity
+import android.net.Uri
+import com.mistymessenger.core.media.S3UploadService
+import com.mistymessenger.core.media.UploadState
+import com.mistymessenger.core.media.VoiceRecorder
 import com.mistymessenger.core.network.SocketManager
 import com.mistymessenger.core.network.TokenProvider
 import com.mistymessenger.chat.repository.ChatSyncRepository
@@ -43,8 +47,13 @@ class ChatDetailViewModel @Inject constructor(
     private val socketManager: SocketManager,
     private val tokenProvider: TokenProvider,
     private val chatSyncRepository: ChatSyncRepository,
+    private val s3UploadService: S3UploadService,
+    val voiceRecorder: VoiceRecorder,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val _uploadingMedia = MutableStateFlow(false)
+    val uploadingMedia = _uploadingMedia.asStateFlow()
 
     val currentUserId: String get() = tokenProvider.getUserId()
 
@@ -171,6 +180,112 @@ class ChatDetailViewModel @Inject constructor(
         }
         clearReply()
     }
+
+    // ── Media send ────────────────────────────────────────────────────────────
+
+    fun sendMedia(uri: Uri, mimeType: String, fullRes: Boolean = true) {
+        val type = when {
+            mimeType.startsWith("image") -> "image"
+            mimeType.startsWith("video") -> "video"
+            else -> "document"
+        }
+        viewModelScope.launch {
+            _uploadingMedia.value = true
+            s3UploadService.uploadUri(uri, mimeType, compress = !fullRes).collect { state ->
+                when (state) {
+                    is UploadState.Success -> {
+                        _uploadingMedia.value = false
+                        val msgId = UUID.randomUUID().toString()
+                        val entity = MessageEntity(
+                            id = msgId,
+                            chatId = _chatId.value,
+                            senderId = currentUserId,
+                            type = type,
+                            content = "",
+                            mediaUrl = state.result.url,
+                            status = "sending",
+                            createdAt = System.currentTimeMillis()
+                        )
+                        messageDao.insert(entity)
+                        socketManager.emit("message:send", JSONObject().apply {
+                            put("id", msgId)
+                            put("chatId", _chatId.value)
+                            put("type", type)
+                            put("mediaUrl", state.result.url)
+                            put("content", "")
+                        })
+                    }
+                    is UploadState.Error -> { _uploadingMedia.value = false }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun sendGif(gifUrl: String) {
+        val msgId = UUID.randomUUID().toString()
+        viewModelScope.launch {
+            val entity = MessageEntity(
+                id = msgId, chatId = _chatId.value, senderId = currentUserId,
+                type = "gif", content = "", mediaUrl = gifUrl,
+                status = "sending", createdAt = System.currentTimeMillis()
+            )
+            messageDao.insert(entity)
+            socketManager.emit("message:send", JSONObject().apply {
+                put("id", msgId); put("chatId", _chatId.value)
+                put("type", "gif"); put("mediaUrl", gifUrl); put("content", "")
+            })
+        }
+    }
+
+    fun sendSticker(stickerUrl: String) {
+        val msgId = UUID.randomUUID().toString()
+        viewModelScope.launch {
+            val entity = MessageEntity(
+                id = msgId, chatId = _chatId.value, senderId = currentUserId,
+                type = "sticker", content = "", mediaUrl = stickerUrl,
+                status = "sending", createdAt = System.currentTimeMillis()
+            )
+            messageDao.insert(entity)
+            socketManager.emit("message:send", JSONObject().apply {
+                put("id", msgId); put("chatId", _chatId.value)
+                put("type", "sticker"); put("mediaUrl", stickerUrl); put("content", "")
+            })
+        }
+    }
+
+    fun startRecording() { voiceRecorder.start() }
+
+    fun stopAndSendVoice() {
+        val file = voiceRecorder.stop() ?: return
+        viewModelScope.launch {
+            _uploadingMedia.value = true
+            val uri = android.net.Uri.fromFile(file)
+            s3UploadService.uploadUri(uri, "audio/mp4", compress = false).collect { state ->
+                when (state) {
+                    is UploadState.Success -> {
+                        _uploadingMedia.value = false
+                        val msgId = UUID.randomUUID().toString()
+                        val entity = MessageEntity(
+                            id = msgId, chatId = _chatId.value, senderId = currentUserId,
+                            type = "audio", content = "", mediaUrl = state.result.url,
+                            status = "sending", createdAt = System.currentTimeMillis()
+                        )
+                        messageDao.insert(entity)
+                        socketManager.emit("message:send", JSONObject().apply {
+                            put("id", msgId); put("chatId", _chatId.value)
+                            put("type", "audio"); put("mediaUrl", state.result.url); put("content", "")
+                        })
+                        voiceRecorder.reset()
+                    }
+                    is UploadState.Error -> { _uploadingMedia.value = false }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun cancelRecording() { voiceRecorder.cancel() }
 
     // ── Typing ────────────────────────────────────────────────────────────────
 

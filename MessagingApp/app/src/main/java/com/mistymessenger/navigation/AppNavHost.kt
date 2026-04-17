@@ -54,8 +54,8 @@ sealed class Screen(val route: String) {
     object ContactInfo : Screen("contact_info/{userId}") {
         fun createRoute(userId: String) = "contact_info/$userId"
     }
-    object MediaViewer : Screen("media_viewer/{messageId}") {
-        fun createRoute(messageId: String) = "media_viewer/$messageId"
+    object MediaViewer : Screen("media_viewer/{url}/{mimeType}") {
+        fun createRoute(url: String, mimeType: String) = "media_viewer/$url/$mimeType"
     }
     object MediaGallery : Screen("media_gallery/{chatId}") {
         fun createRoute(chatId: String) = "media_gallery/$chatId"
@@ -191,12 +191,14 @@ fun AppNavHost(
         }
         composable(
             Screen.MediaViewer.route,
-            arguments = listOf(navArgument("messageId") { type = NavType.StringType })
-        ) { back ->
-            MediaViewerScreen(
-                messageId = back.arguments?.getString("messageId") ?: "",
-                onBack = { navController.popBackStack() }
+            arguments = listOf(
+                navArgument("url") { type = NavType.StringType },
+                navArgument("mimeType") { type = NavType.StringType }
             )
+        ) { back ->
+            val url = java.net.URLDecoder.decode(back.arguments?.getString("url") ?: "", "UTF-8")
+            val mime = java.net.URLDecoder.decode(back.arguments?.getString("mimeType") ?: "image/jpeg", "UTF-8")
+            MediaViewerScreen(url = url, mimeType = mime, navController = navController)
         }
         composable(
             Screen.MediaGallery.route,
