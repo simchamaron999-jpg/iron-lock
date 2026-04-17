@@ -50,4 +50,7 @@ class NewChatViewModel @Inject constructor(
                 .onSuccess { onResult(it.id) }
         }
     }
+
+    suspend fun getOrCreateDm(userId: String): String? =
+        runCatching { api.createOrGetDm(CreateDmRequest(userId)).id }.getOrNull()
 }

@@ -28,6 +28,9 @@ data class ChatEntity(
     val isArchived: Boolean = false,
     val isPinned: Boolean = false,
     val memberIds: List<String> = emptyList(),
+    val adminIds: List<String> = emptyList(),
+    val inviteLink: String = "",
+    val description: String = "",
     val isChatLocked: Boolean = false
 )
 

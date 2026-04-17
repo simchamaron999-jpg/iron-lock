@@ -41,6 +41,9 @@ interface ContactDao {
 
     @Query("UPDATE contacts SET customNotificationSoundUri = :uri WHERE userId = :id")
     suspend fun setNotificationSound(id: String, uri: String)
+
+    @Query("SELECT * FROM contacts WHERE userId IN (:ids)")
+    suspend fun getContactsByIds(ids: List<String>): List<ContactEntity>
 }
 
 @Dao

@@ -41,4 +41,16 @@ interface ChatDao {
 
     @Query("DELETE FROM chats WHERE id = :chatId")
     suspend fun deleteChat(chatId: String)
+
+    @Query("UPDATE chats SET name = :name, avatarUrl = :avatarUrl WHERE id = :chatId")
+    suspend fun updateGroupInfo(chatId: String, name: String, avatarUrl: String)
+
+    @Query("UPDATE chats SET adminIds = :adminIds WHERE id = :chatId")
+    suspend fun updateAdmins(chatId: String, adminIds: List<String>)
+
+    @Query("UPDATE chats SET memberIds = :memberIds WHERE id = :chatId")
+    suspend fun updateMembers(chatId: String, memberIds: List<String>)
+
+    @Query("UPDATE chats SET inviteLink = :link WHERE id = :chatId")
+    suspend fun updateInviteLink(chatId: String, link: String)
 }
