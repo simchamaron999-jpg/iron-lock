@@ -10,11 +10,39 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.mistymessenger.MainActivity
 import com.mistymessenger.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import retrofit2.http.Body
+import retrofit2.http.POST
 
+interface FcmTokenApi {
+    @POST("users/fcm-token") suspend fun registerToken(@Body body: Map<String, String>)
+}
+
+@dagger.hilt.android.AndroidEntryPoint
 class MistyFirebaseMessagingService : FirebaseMessagingService() {
 
+    @javax.inject.Inject lateinit var retrofitClient: com.mistymessenger.core.network.RetrofitClient
+    @javax.inject.Inject lateinit var tokenProvider: com.mistymessenger.core.network.TokenProvider
+
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+
     override fun onNewToken(token: String) {
-        // Phase 2: POST token to backend for this user
+        if (tokenProvider.getUserId().isBlank()) return
+        scope.launch {
+            runCatching {
+                retrofitClient.retrofit
+                    .create(FcmTokenApi::class.java)
+                    .registerToken(mapOf("token" to token))
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

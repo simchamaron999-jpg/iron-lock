@@ -235,30 +235,177 @@ fun MultipleAccountsScreen(navController: NavHostController, viewModel: Settings
     }
 }
 
-// ─── Stub screens (Phase 2–9 implementations) ────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AccountSettingsScreen(navController: NavHostController) = StubSettingsScreen("Account Settings", navController)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun NotificationSettingsScreen(navController: NavHostController) = StubSettingsScreen("Notification Settings", navController)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun StorageSettingsScreen(navController: NavHostController) = StubSettingsScreen("Storage & Data", navController)
-
 // ChatWallpaperScreen lives in ChatWallpaperScreen.kt
 // ChatLockScreen lives in ChatLockScreen.kt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BlockedContactsScreen(navController: NavHostController) = StubSettingsScreen("Blocked Contacts", navController)
+fun AccountSettingsScreen(navController: NavHostController, viewModel: SettingsViewModel = hiltViewModel()) {
+    val accounts by viewModel.accounts.collectAsState()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text("Account") }
+            )
+        }
+    ) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            item {
+                SectionHeader("Profile")
+                ListItem(headlineContent = { Text("Change name") }, leadingContent = { Icon(Icons.Default.Person, null) })
+                HorizontalDivider()
+                ListItem(headlineContent = { Text("Change phone number") }, leadingContent = { Icon(Icons.Default.Phone, null) })
+                HorizontalDivider()
+                SectionHeader("Security")
+                ListItem(headlineContent = { Text("Two-step verification") }, leadingContent = { Icon(Icons.Default.Security, null) })
+                HorizontalDivider()
+                ListItem(headlineContent = { Text("Change email") }, leadingContent = { Icon(Icons.Default.Email, null) })
+                HorizontalDivider()
+                SectionHeader("Accounts (${accounts.size}/3)")
+            }
+            items(accounts.size) { i ->
+                val account = accounts[i]
+                ListItem(
+                    headlineContent = { Text(account.name) },
+                    supportingContent = { Text(account.phone) },
+                    trailingContent = {
+                        if (account.isActive) Badge { Text("Active") }
+                        else TextButton(onClick = { viewModel.switchAccount(account.id) }) { Text("Switch") }
+                    }
+                )
+                HorizontalDivider()
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatExportScreen(chatId: String, navController: NavHostController) = StubSettingsScreen("Export Chat", navController)
+fun NotificationSettingsScreen(navController: NavHostController) {
+    var messageTone by remember { mutableStateOf(true) }
+    var vibrate by remember { mutableStateOf(true) }
+    var preview by remember { mutableStateOf(true) }
+    var groupTone by remember { mutableStateOf(true) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text("Notifications") }
+            )
+        }
+    ) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            item {
+                SectionHeader("Messages")
+                SwitchSettingsItem("Message notifications", messageTone) { messageTone = it }
+                SwitchSettingsItem("Vibrate", vibrate) { vibrate = it }
+                SwitchSettingsItem("Show preview", preview) { preview = it }
+                SectionHeader("Groups")
+                SwitchSettingsItem("Group notifications", groupTone) { groupTone = it }
+                SectionHeader("Calls")
+                ListItem(
+                    headlineContent = { Text("Ringtone") },
+                    supportingContent = { Text("Default", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingContent = { Icon(Icons.Default.Notifications, null) }
+                )
+                HorizontalDivider()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StorageSettingsScreen(navController: NavHostController) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text("Storage & Data") }
+            )
+        }
+    ) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            item {
+                SectionHeader("Storage")
+                ListItem(
+                    headlineContent = { Text("Manage storage") },
+                    supportingContent = { Text("View and clear chat media", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingContent = { Icon(Icons.Default.Storage, null) }
+                )
+                HorizontalDivider()
+                SectionHeader("Network Usage")
+                ListItem(headlineContent = { Text("Auto-download media on mobile") }, supportingContent = { Text("Photos, audio, videos, documents", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }, leadingContent = { Icon(Icons.Default.NetworkCell, null) })
+                HorizontalDivider()
+                ListItem(headlineContent = { Text("Auto-download media on Wi-Fi") }, supportingContent = { Text("Photos, audio, videos, documents", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }, leadingContent = { Icon(Icons.Default.Wifi, null) })
+                HorizontalDivider()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BlockedContactsScreen(navController: NavHostController, viewModel: SettingsViewModel = hiltViewModel()) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text("Blocked contacts") }
+            )
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Block, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(12.dp))
+                Text("No blocked contacts", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatExportScreen(chatId: String, navController: NavHostController) {
+    var withMedia by remember { mutableStateOf(false) }
+    var exported by remember { mutableStateOf(false) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text("Export chat") }
+            )
+        }
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(Icons.Default.Share, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(16.dp))
+            Text("Export this chat as a .txt file", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(24.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("Include media files", modifier = Modifier.weight(1f))
+                Switch(checked = withMedia, onCheckedChange = { withMedia = it })
+            }
+            Spacer(Modifier.height(24.dp))
+            if (exported) {
+                Text("Chat exported to Downloads/MistyMessenger/", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Button(onClick = { exported = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.FileDownload, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Export chat")
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

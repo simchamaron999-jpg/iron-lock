@@ -27,6 +27,25 @@ router.put('/me', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/users/fcm-token — register device push token
+router.post('/fcm-token', async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token required' });
+    await User.findByIdAndUpdate(req.userId, { $addToSet: { fcmTokens: token } });
+    res.json({ message: 'Token registered' });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/users/fcm-token — remove device push token on logout
+router.delete('/fcm-token', async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    await User.findByIdAndUpdate(req.userId, { $pull: { fcmTokens: token } });
+    res.json({ message: 'Token removed' });
+  } catch (err) { next(err); }
+});
+
 // POST /api/users/sync-contacts
 // Receives array of phone numbers, returns registered users
 router.post('/sync-contacts', async (req, res, next) => {
