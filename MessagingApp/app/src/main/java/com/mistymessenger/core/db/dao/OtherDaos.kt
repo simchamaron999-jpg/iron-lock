@@ -62,6 +62,9 @@ interface StatusDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(status: StatusEntity)
+
+    @Query("DELETE FROM statuses WHERE id = :id")
+    suspend fun deleteById(id: String)
 }
 
 @Dao
