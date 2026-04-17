@@ -56,8 +56,10 @@ router.post('/verify-otp', async (req, res, next) => {
 // POST /api/auth/profile
 router.post('/profile', authMiddleware, async (req, res, next) => {
   try {
-    const { name, bio } = req.body;
-    await User.findByIdAndUpdate(req.userId, { name, bio });
+    const { name, bio, avatarUrl } = req.body;
+    const update = { name, bio };
+    if (avatarUrl) update.avatarUrl = avatarUrl;
+    await User.findByIdAndUpdate(req.userId, update);
     res.json({ message: 'Profile saved' });
   } catch (err) { next(err); }
 });

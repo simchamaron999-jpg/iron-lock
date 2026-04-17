@@ -6,6 +6,8 @@ import com.mistymessenger.core.db.AppDatabase
 import com.mistymessenger.core.network.RetrofitClient
 import com.mistymessenger.core.network.SocketManager
 import com.mistymessenger.core.network.TokenProvider
+import com.mistymessenger.core.service.PresenceService
+import com.mistymessenger.core.worker.WorkerScheduler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,4 +48,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideSocketManager(tokenProvider: TokenProvider) = SocketManager(tokenProvider)
+
+    @Provides
+    @Singleton
+    fun providePresenceService(socketManager: SocketManager, userDao: com.mistymessenger.core.db.dao.UserDao) =
+        PresenceService(socketManager, userDao)
+
+    @Provides
+    @Singleton
+    fun provideWorkerScheduler(@ApplicationContext ctx: Context) = WorkerScheduler(ctx)
 }

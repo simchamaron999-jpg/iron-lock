@@ -20,10 +20,15 @@ class TokenProvider @Inject constructor(
         val ACCESS_TOKEN = stringPreferencesKey("access_token")
         val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
         val USER_ID = stringPreferencesKey("user_id")
+        val ACTIVE_ACCOUNT_ID = stringPreferencesKey("active_account_id")
     }
 
     fun getAccessToken(): String = runBlocking {
         context.dataStore.data.map { it[ACCESS_TOKEN] ?: "" }.first()
+    }
+
+    fun getRefreshToken(): String = runBlocking {
+        context.dataStore.data.map { it[REFRESH_TOKEN] ?: "" }.first()
     }
 
     fun getUserId(): String = runBlocking {
@@ -37,6 +42,12 @@ class TokenProvider @Inject constructor(
                 set(REFRESH_TOKEN, refreshToken)
                 set(USER_ID, userId)
             }
+        }
+    }
+
+    suspend fun saveAccessToken(token: String) {
+        context.dataStore.updateData { prefs ->
+            prefs.toMutablePreferences().apply { set(ACCESS_TOKEN, token) }
         }
     }
 

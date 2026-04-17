@@ -135,48 +135,4 @@ fun OTPVerificationScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileSetupScreen(
-    onComplete: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
-) {
-    val state by viewModel.uiState.collectAsState()
-    var name by remember { mutableStateOf("") }
-    var bio by remember { mutableStateOf("") }
-
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("Set up your profile", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(32.dp))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Your name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = bio,
-                onValueChange = { bio = it },
-                label = { Text("About (optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 2
-            )
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = { viewModel.saveProfile(name, bio, onComplete) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = name.isNotBlank() && !state.isLoading
-            ) {
-                if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Text("Continue")
-            }
-        }
-    }
-}
+// ProfileSetupScreen lives in ProfileSetupScreen.kt

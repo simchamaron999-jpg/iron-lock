@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistymessenger.core.network.SocketManager
 import com.mistymessenger.core.network.TokenProvider
+import com.mistymessenger.core.service.PresenceService
 import com.mistymessenger.core.ui.theme.AppFonts
 import com.mistymessenger.core.ui.theme.MistyGreen
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,7 +31,8 @@ data class AuthState(
 @HiltViewModel
 class AppViewModel @Inject constructor(
     private val tokenProvider: TokenProvider,
-    private val socketManager: SocketManager
+    private val socketManager: SocketManager,
+    private val presenceService: PresenceService
 ) : ViewModel() {
 
     private val _themeState = MutableStateFlow(ThemeState())
@@ -47,8 +49,21 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val token = tokenProvider.getAccessToken()
             val userId = tokenProvider.getUserId()
-            _authState.update { it.copy(isLoggedIn = token.isNotEmpty(), userId = userId) }
-            if (token.isNotEmpty()) socketManager.connect()
+            val loggedIn = token.isNotEmpty()
+            _authState.update { it.copy(isLoggedIn = loggedIn, userId = userId) }
+            if (loggedIn) {
+                socketManager.connect()
+                presenceService.start()
+            }
+        }
+    }
+
+    fun onAuthSuccess() {
+        viewModelScope.launch {
+            val userId = tokenProvider.getUserId()
+            _authState.update { it.copy(isLoggedIn = true, userId = userId) }
+            socketManager.connect()
+            presenceService.start()
         }
     }
 
@@ -65,10 +80,16 @@ class AppViewModel @Inject constructor(
     fun onAppForeground() {
         if (_authState.value.isLoggedIn && !socketManager.isConnected) {
             socketManager.connect()
+            presenceService.start()
         }
     }
 
     fun onAppBackground() {
         // Presence handled server-side via heartbeat timeout
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        presenceService.stop()
     }
 }
