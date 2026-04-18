@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -36,13 +38,13 @@ interface GiphyApiService {
     ): GiphyResponse
 }
 
-data class GiphyResponse(val data: List<GifItem>)
-data class GifItem(val id: String, val images: GifImages)
-data class GifImages(
-    val fixed_height_small: GifImage,
+@Serializable data class GiphyResponse(val data: List<GifItem>)
+@Serializable data class GifItem(val id: String, val images: GifImages)
+@Serializable data class GifImages(
+    @SerialName("fixed_height_small") val fixed_height_small: GifImage,
     val original: GifImage
 )
-data class GifImage(val url: String, val width: String = "0", val height: String = "0")
+@Serializable data class GifImage(val url: String, val width: String = "0", val height: String = "0")
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable

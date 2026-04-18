@@ -4,13 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistymessenger.chat.ui.components.GifItem
 import com.mistymessenger.chat.ui.components.GiphyApiService
-import com.mistymessenger.core.network.RetrofitClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Inject
 
 @OptIn(FlowPreview::class)
@@ -19,7 +20,7 @@ class GifViewModel @Inject constructor() : ViewModel() {
 
     private val giphyApi = Retrofit.Builder()
         .baseUrl("https://api.giphy.com/")
-        .addConverterFactory(GsonConverterFactory.create())
+        .addConverterFactory(Json { ignoreUnknownKeys = true }.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(GiphyApiService::class.java)
 
