@@ -46,7 +46,7 @@ class S3UploadService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val retrofitClient: RetrofitClient
 ) {
-    private val api by lazy { retrofitClient.create(MediaApiService::class.java) }
+    private val api by lazy { retrofitClient.retrofit.create(MediaApiService::class.java) }
 
     fun uploadUri(
         uri: Uri,

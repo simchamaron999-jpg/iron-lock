@@ -76,7 +76,7 @@ class GroupRepository @Inject constructor(
     private val s3UploadService: S3UploadService,
     private val tokenProvider: TokenProvider
 ) {
-    private val api by lazy { retrofitClient.create(GroupApiService::class.java) }
+    private val api by lazy { retrofitClient.retrofit.create(GroupApiService::class.java) }
 
     suspend fun createGroup(name: String, memberIds: List<String>, avatarUri: Uri?): ChatEntity {
         var avatarUrl = ""
