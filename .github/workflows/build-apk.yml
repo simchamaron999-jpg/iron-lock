@@ -21,7 +21,16 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
-          cache: gradle
+
+      - name: Cache Gradle wrapper and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches
+          key: gradle-${{ runner.os }}-${{ hashFiles('MessagingApp/gradle/wrapper/gradle-wrapper.properties', 'MessagingApp/**/*.gradle', 'MessagingApp/**/*.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
