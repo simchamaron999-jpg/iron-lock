@@ -47,11 +47,11 @@ data class ContactInfoUiState(
 class ContactInfoViewModel @Inject constructor(
     private val userDao: UserDao,
     private val contactDao: ContactDao,
-    retrofitClient: RetrofitClient,
-    private val newChatViewModel: NewChatViewModel
+    retrofitClient: RetrofitClient
 ) : ViewModel() {
 
-    private val api = retrofitClient.retrofit.create(UserApiService::class.java)
+    private val userApi = retrofitClient.retrofit.create(UserApiService::class.java)
+    private val chatApi = retrofitClient.retrofit.create(ChatApiService::class.java)
     private val _state = MutableStateFlow(ContactInfoUiState())
     val state = _state.asStateFlow()
 
@@ -71,7 +71,7 @@ class ContactInfoViewModel @Inject constructor(
             }
 
             // Fetch live data from server
-            runCatching { api.getUser(userId) }.onSuccess { profile ->
+            runCatching { userApi.getUser(userId) }.onSuccess { profile ->
                 _state.update { it.copy(
                     userId = profile.id,
                     name = if (contact?.name?.isNotBlank() == true) contact.name else profile.name,
@@ -94,9 +94,8 @@ class ContactInfoViewModel @Inject constructor(
             }
 
             // Pre-fetch or create DM chat ID
-            newChatViewModel.openOrCreateDm(userId) { chatId ->
-                _state.update { it.copy(chatId = chatId) }
-            }
+            runCatching { chatApi.createOrGetDm(CreateDmRequest(userId)).id }
+                .onSuccess { chatId -> _state.update { it.copy(chatId = chatId) } }
         }
     }
 

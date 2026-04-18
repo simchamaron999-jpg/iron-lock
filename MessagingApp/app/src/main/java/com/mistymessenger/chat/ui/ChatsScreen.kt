@@ -40,7 +40,7 @@ fun ChatsScreen(
                     IconButton(onClick = onSearch) { Icon(Icons.Default.Search, "Search") }
                     IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, "More") }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("New group") }, onClick = { showMenu = false; /* navigate */ leadingIcon = null }, leadingIcon = { Icon(Icons.Default.Group, null) })
+                        DropdownMenuItem(text = { Text("New group") }, onClick = { showMenu = false }, leadingIcon = { Icon(Icons.Default.Group, null) })
                         DropdownMenuItem(text = { Text("Broadcast list") }, onClick = { showMenu = false }, leadingIcon = { Icon(Icons.Default.Campaign, null) })
                         DropdownMenuItem(text = { Text("Starred messages") }, onClick = { showMenu = false }, leadingIcon = { Icon(Icons.Default.Star, null) })
                         DropdownMenuItem(text = { Text("Settings") }, onClick = { showMenu = false; onSettings() }, leadingIcon = { Icon(Icons.Default.Settings, null) })

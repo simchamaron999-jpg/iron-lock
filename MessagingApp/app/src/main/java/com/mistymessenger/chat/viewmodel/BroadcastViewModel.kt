@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mistymessenger.core.db.dao.ContactDao
 import com.mistymessenger.core.db.entity.ContactEntity
+import com.mistymessenger.core.network.RetrofitClient
 import com.mistymessenger.core.network.SocketManager
 import com.mistymessenger.core.network.TokenProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,8 +19,10 @@ class BroadcastViewModel @Inject constructor(
     private val contactDao: ContactDao,
     private val socketManager: SocketManager,
     private val tokenProvider: TokenProvider,
-    private val newChatViewModel: NewChatViewModel
+    retrofitClient: RetrofitClient
 ) : ViewModel() {
+
+    private val chatApi = retrofitClient.retrofit.create(ChatApiService::class.java)
 
     val contacts = contactDao.getAllContacts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -63,7 +66,7 @@ class BroadcastViewModel @Inject constructor(
             _sentCount.value = 0
             recipients.forEach { userId ->
                 runCatching {
-                    newChatViewModel.getOrCreateDm(userId)?.let { chatId ->
+                    chatApi.createOrGetDm(CreateDmRequest(userId)).id.let { chatId ->
                         val msgId = UUID.randomUUID().toString()
                         socketManager.emit("message:send", JSONObject().apply {
                             put("id", msgId)
